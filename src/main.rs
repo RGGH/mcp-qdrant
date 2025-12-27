@@ -31,7 +31,8 @@ async fn main() -> anyhow::Result<()> {
     println!("  🤖 Embedding model: {}", config.embedding_model);
     println!();
 
-    let bind_address = format!("127.0.0.1:{}", config.port);
+
+    let bind_address = format!("{}:{}", config.host, config.port);
     let server_config = config.clone();
 
     let mcp_server = QdrantMCPServer::new(
