@@ -5,16 +5,30 @@
 
 - Run as a server, preferably on same server as the Qdrant collection
 - Use LLM + LLM CLient + mcp-qdrant to find stuff, just with semantic meaning
-- Add / add more via Loader or use the Chrome extension, failing that, give me money to do it for you
 
 
-Reference:
 
-https://github.com/qdrant/mcp-server-qdrant
 
-They have a "store" and a "find" endpoint, we will focus on "find" because "Loader" will do the "store" functions.
+## The flow:
 
-The "store" needs to be done with human in the loop, and wth additional metadata, so the idea of using LLM to call MCP to upsert data into Qdrant is likely a showcase rather than a valid solution.
+```code
+1. Client makes HTTP request
+   ↓
+2. Axum server receives TCP connection on port 8766
+   ↓
+3. Axum parses HTTP request
+   ↓
+4. Router checks path: "/mcp" → forward to service
+   ↓
+5. StreamableHttpService handles MCP protocol
+   ↓
+6. Your QdrantMCPServer executes the tool
+   ↓
+7. Response bubbles back up through service → router → server
+   ↓
+8. Axum server sends HTTP response over TCP
+```
+
 
 # Testing
 

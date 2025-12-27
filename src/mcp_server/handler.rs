@@ -1,7 +1,7 @@
 use crate::mcp_server::server::QdrantMCPServer;
-use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, tool_handler, prompt_handler};
 use rmcp::model::*;
 use rmcp::service::RequestContext;
+use rmcp::{ErrorData as McpError, RoleServer, ServerHandler, prompt_handler, tool_handler};
 use serde_json::json;
 
 // Apply macros to generate handler implementations
@@ -42,9 +42,7 @@ impl ServerHandler for QdrantMCPServer {
                 • vector_search_assistant - Get search guidance\n\n\
                 Resources:\n\
                 • qdrant://collection - Collection information",
-                self.qdrant_url,
-                self.collection_name,
-                self.embedding_model_name
+                self.qdrant_url, self.collection_name, self.embedding_model_name
             )),
         }
     }
@@ -58,8 +56,9 @@ impl ServerHandler for QdrantMCPServer {
             resources: vec![
                 RawResource::new(
                     "qdrant://collection",
-                    format!("Qdrant Collection: {}", self.collection_name)
-                ).no_annotation(),
+                    format!("Qdrant Collection: {}", self.collection_name),
+                )
+                .no_annotation(),
             ],
             next_cursor: None,
             meta: None,
@@ -72,23 +71,21 @@ impl ServerHandler for QdrantMCPServer {
         _ctx: RequestContext<RoleServer>,
     ) -> Result<ReadResourceResult, McpError> {
         match uri.as_str() {
-            "qdrant://collection" => {
-                match self.get_collection_info().await {
-                    Ok(info_result) => {
-                        let mut content_text = String::new();
-                        for c in &info_result.content {
-                            if let RawContent::Text(text_content) = &c.raw {
-                                content_text.push_str(&text_content.text);
-                            }
+            "qdrant://collection" => match self.get_collection_info().await {
+                Ok(info_result) => {
+                    let mut content_text = String::new();
+                    for c in &info_result.content {
+                        if let RawContent::Text(text_content) = &c.raw {
+                            content_text.push_str(&text_content.text);
                         }
-
-                        Ok(ReadResourceResult {
-                            contents: vec![ResourceContents::text(&content_text, uri)],
-                        })
                     }
-                    Err(e) => Err(e),
+
+                    Ok(ReadResourceResult {
+                        contents: vec![ResourceContents::text(&content_text, uri)],
+                    })
                 }
-            }
+                Err(e) => Err(e),
+            },
             _ => Err(McpError::resource_not_found(
                 "Resource not found",
                 Some(json!({ "uri": uri })),

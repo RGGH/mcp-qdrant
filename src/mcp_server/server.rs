@@ -1,15 +1,17 @@
-use std::sync::Arc;
+use crate::mcp_server::types::*;
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use qdrant_client::Qdrant;
-use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
-use tokio::sync::Mutex;
-use rmcp::{ErrorData as McpError, tool_router, prompt_router, tool, prompt, RoleServer};
+use qdrant_client::qdrant::{
+    Condition, CountPoints, FieldCondition, Filter, Match, ScrollPoints, SearchPoints,
+};
 use rmcp::handler::server::router::{prompt::PromptRouter, tool::ToolRouter};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{CallToolResult, Content, GetPromptResult, PromptMessage, PromptMessageRole};
 use rmcp::service::RequestContext;
+use rmcp::{ErrorData as McpError, RoleServer, prompt, prompt_router, tool, tool_router};
 use serde_json::json;
-use qdrant_client::qdrant::{SearchPoints, ScrollPoints, CountPoints, Filter, Condition, FieldCondition, Match};
-use crate::mcp_server::types::*;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct QdrantMCPServer {
@@ -26,21 +28,20 @@ pub struct QdrantMCPServer {
 #[tool_router]
 #[prompt_router]
 impl QdrantMCPServer {
-pub async fn new(
-    qdrant_url: String,
-    collection_name: String,
-    embedding_model_name: String,
-) -> anyhow::Result<Self> {
-        
+    pub async fn new(
+        qdrant_url: String,
+        collection_name: String,
+        embedding_model_name: String,
+    ) -> anyhow::Result<Self> {
         tracing::info!(
             url = %qdrant_url,
             collection = %collection_name,
             model = %embedding_model_name,
             "initializing_qdrant_mcp_server"
         );
-        
+
         let client = Qdrant::from_url(&qdrant_url).build()?;
-        
+
         let model = match embedding_model_name.as_str() {
             "BAAI/bge-small-en-v1.5" => EmbeddingModel::BGESmallENV15,
             "BAAI/bge-base-en-v1.5" => EmbeddingModel::BGEBaseENV15,
@@ -54,12 +55,11 @@ pub async fn new(
                 EmbeddingModel::BGESmallENV15
             }
         };
-        
+
         tracing::info!(model = ?model, "initializing_fastembed_model");
-        let embedding_model = TextEmbedding::try_new(
-            InitOptions::new(model).with_show_download_progress(true)
-        )?;
-        
+        let embedding_model =
+            TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))?;
+
         tracing::info!("fastembed_model_initialized");
 
         Ok(Self {
@@ -75,29 +75,28 @@ pub async fn new(
 
     pub async fn embed_text(&self, text: &str) -> Result<Vec<f32>, McpError> {
         let mut model = self.embedding_model.lock().await;
-        
-        model.embed(vec![text], None)
-            .map_err(|e| McpError::internal_error(
-                format!("Failed to generate embedding: {}", e),
-                None
-            ))?
+
+        model
+            .embed(vec![text], None)
+            .map_err(|e| {
+                McpError::internal_error(format!("Failed to generate embedding: {}", e), None)
+            })?
             .into_iter()
             .next()
-            .ok_or_else(|| McpError::internal_error(
-                "No embedding generated".to_string(),
-                None
-            ))
+            .ok_or_else(|| McpError::internal_error("No embedding generated".to_string(), None))
     }
 
     // TOOLS - all must be in this impl block
-    #[tool(description = "Search for semantically similar text content in the Qdrant collection. This is the primary search method - provide natural language queries.")]
+    #[tool(
+        description = "Search for semantically similar text content in the Qdrant collection. This is the primary search method - provide natural language queries."
+    )]
     pub async fn search_text(
         &self,
         Parameters(args): Parameters<SearchTextArgs>,
     ) -> Result<CallToolResult, McpError> {
         let query_vector = self.embed_text(&args.query).await?;
         let client = self.client.lock().await;
-        
+
         let search_result = client
             .search_points(SearchPoints {
                 collection_name: self.collection_name.clone(),
@@ -107,10 +106,7 @@ pub async fn new(
                 ..Default::default()
             })
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Search failed: {}", e),
-                None
-            ))?;
+            .map_err(|e| McpError::internal_error(format!("Search failed: {}", e), None))?;
 
         let results = json!({
             "query": args.query,
@@ -122,18 +118,20 @@ pub async fn new(
             })).collect::<Vec<_>>()
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&results).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
+        )]))
     }
 
-    #[tool(description = "Search using a pre-computed vector (advanced use - most users should use search_text instead)")]
+    #[tool(
+        description = "Search using a pre-computed vector (advanced use - most users should use search_text instead)"
+    )]
     pub async fn search_vectors(
         &self,
         Parameters(args): Parameters<SearchVectorsArgs>,
     ) -> Result<CallToolResult, McpError> {
         let client = self.client.lock().await;
-        
+
         let search_result = client
             .search_points(SearchPoints {
                 collection_name: self.collection_name.clone(),
@@ -143,10 +141,7 @@ pub async fn new(
                 ..Default::default()
             })
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Search failed: {}", e),
-                None
-            ))?;
+            .map_err(|e| McpError::internal_error(format!("Search failed: {}", e), None))?;
 
         let results = json!({
             "count": search_result.result.len(),
@@ -157,9 +152,9 @@ pub async fn new(
             })).collect::<Vec<_>>()
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&results).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
+        )]))
     }
 
     #[tool(description = "Scroll through all points in the collection with pagination support")]
@@ -178,10 +173,7 @@ pub async fn new(
                 ..Default::default()
             })
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Scroll failed: {}", e),
-                None
-            ))?;
+            .map_err(|e| McpError::internal_error(format!("Scroll failed: {}", e), None))?;
 
         let results = json!({
             "count": scroll_result.result.len(),
@@ -193,9 +185,9 @@ pub async fn new(
             "next_offset": scroll_result.next_page_offset.map(|o| format!("{:?}", o))
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&results).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
+        )]))
     }
 
     #[tool(description = "Count the total number of points in the collection")]
@@ -212,21 +204,20 @@ pub async fn new(
                 ..Default::default()
             })
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Count failed: {}", e),
-                None
-            ))?;
+            .map_err(|e| McpError::internal_error(format!("Count failed: {}", e), None))?;
 
         let result = json!({
             "count": count_result.result.map(|r| r.count).unwrap_or(0)
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&result).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&result).unwrap(),
+        )]))
     }
 
-    #[tool(description = "Search for semantically similar text with metadata filtering - find content matching your query AND specific criteria (e.g., by username or filename)")]
+    #[tool(
+        description = "Search for semantically similar text with metadata filtering - find content matching your query AND specific criteria (e.g., by username or filename)"
+    )]
     pub async fn filter_search(
         &self,
         Parameters(args): Parameters<FilterSearchArgs>,
@@ -241,11 +232,11 @@ pub async fn new(
                         key: args.filter_field.clone(),
                         r#match: Some(Match {
                             match_value: Some(qdrant_client::qdrant::r#match::MatchValue::Keyword(
-                                args.filter_value.clone()
+                                args.filter_value.clone(),
                             )),
                         }),
                         ..Default::default()
-                    }
+                    },
                 )),
             }],
             ..Default::default()
@@ -261,10 +252,9 @@ pub async fn new(
                 ..Default::default()
             })
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Filtered search failed: {}", e),
-                None
-            ))?;
+            .map_err(|e| {
+                McpError::internal_error(format!("Filtered search failed: {}", e), None)
+            })?;
 
         let results = json!({
             "query": args.query,
@@ -280,22 +270,21 @@ pub async fn new(
             })).collect::<Vec<_>>()
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&results).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
+        )]))
     }
 
     #[tool(description = "Get collection information and statistics")]
     pub async fn get_collection_info(&self) -> Result<CallToolResult, McpError> {
         let client = self.client.lock().await;
-        
+
         let collection_info = client
             .collection_info(&self.collection_name)
             .await
-            .map_err(|e| McpError::internal_error(
-                format!("Failed to get collection info: {}", e),
-                None
-            ))?;
+            .map_err(|e| {
+                McpError::internal_error(format!("Failed to get collection info: {}", e), None)
+            })?;
 
         let info = json!({
             "collection_name": self.collection_name,
@@ -307,9 +296,9 @@ pub async fn new(
             "indexed_vectors": collection_info.result.as_ref().and_then(|r| r.indexed_vectors_count),
         });
 
-        Ok(CallToolResult::success(vec![
-            Content::text(serde_json::to_string_pretty(&info).unwrap())
-        ]))
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&info).unwrap(),
+        )]))
     }
 
     // PROMPTS - must also be in this impl block
