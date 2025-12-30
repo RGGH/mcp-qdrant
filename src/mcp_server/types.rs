@@ -3,6 +3,21 @@ use rmcp::schemars::JsonSchema;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct KeywordSearchArgs {
+    /// The semantic search query
+    pub query: String,
+    /// Keywords that must appear in the text (space-separated for multiple)
+    pub must_contain_keywords: String,
+    
+    #[serde(default = "default_limit")]
+    pub limit: u64,
+    
+    #[serde(default = "default_with_payload")]
+    pub with_payload: bool,
+}
+
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SearchTextArgs {
     /// The text query to search for semantically similar content
     pub query: String,

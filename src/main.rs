@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     let config = ServerConfig::from_env()?;
 
     println!("🔧 Configuration:");
-    println!("  📡 Binding to: 127.0.0.1:{}", config.port);
+    println!("  📡 Binding to: {}:{}", config.host, config.port);
     println!("  🔗 MCP endpoint: http://127.0.0.1:{}/mcp", config.port);
     println!("  🗄️  Qdrant collection: {}", config.collection_name);
     println!("  🌐 Qdrant URL: {}", config.qdrant_url);

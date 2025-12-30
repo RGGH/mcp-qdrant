@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 
 #[derive(Clone)]
 pub struct QdrantMCPServer {
-    pub client: Arc<Mutex<Qdrant>>,
+    pub client: Arc<Qdrant>,
     pub embedding_model: Arc<Mutex<TextEmbedding>>,
     pub collection_name: String,
     pub qdrant_url: String,
@@ -63,7 +63,7 @@ impl QdrantMCPServer {
         tracing::info!("fastembed_model_initialized");
 
         Ok(Self {
-            client: Arc::new(Mutex::new(client)),
+            client: Arc::new(client),
             embedding_model: Arc::new(Mutex::new(embedding_model)),
             collection_name: collection_name.clone(),
             qdrant_url: qdrant_url.clone(),
@@ -95,9 +95,8 @@ impl QdrantMCPServer {
         Parameters(args): Parameters<SearchTextArgs>,
     ) -> Result<CallToolResult, McpError> {
         let query_vector = self.embed_text(&args.query).await?;
-        let client = self.client.lock().await;
 
-        let search_result = client
+        let search_result = self.client
             .search_points(SearchPoints {
                 collection_name: self.collection_name.clone(),
                 vector: query_vector,
@@ -130,9 +129,8 @@ impl QdrantMCPServer {
         &self,
         Parameters(args): Parameters<SearchVectorsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let client = self.client.lock().await;
 
-        let search_result = client
+        let search_result = self.client
             .search_points(SearchPoints {
                 collection_name: self.collection_name.clone(),
                 vector: args.vector.iter().map(|&v| v as f32).collect(),
@@ -162,9 +160,8 @@ impl QdrantMCPServer {
         &self,
         Parameters(args): Parameters<ScrollPointsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let client = self.client.lock().await;
 
-        let scroll_result = client
+        let scroll_result = self.client
             .scroll(ScrollPoints {
                 collection_name: self.collection_name.clone(),
                 limit: Some(args.limit),
@@ -195,9 +192,8 @@ impl QdrantMCPServer {
         &self,
         Parameters(args): Parameters<CountPointsArgs>,
     ) -> Result<CallToolResult, McpError> {
-        let client = self.client.lock().await;
 
-        let count_result = client
+        let count_result = self.client
             .count(CountPoints {
                 collection_name: self.collection_name.clone(),
                 exact: Some(args.exact),
@@ -223,7 +219,6 @@ impl QdrantMCPServer {
         Parameters(args): Parameters<FilterSearchArgs>,
     ) -> Result<CallToolResult, McpError> {
         let query_vector = self.embed_text(&args.query).await?;
-        let client = self.client.lock().await;
 
         let filter = Filter {
             must: vec![Condition {
@@ -242,7 +237,7 @@ impl QdrantMCPServer {
             ..Default::default()
         };
 
-        let search_result = client
+        let search_result = self.client
             .search_points(SearchPoints {
                 collection_name: self.collection_name.clone(),
                 vector: query_vector,
@@ -277,9 +272,8 @@ impl QdrantMCPServer {
 
     #[tool(description = "Get collection information and statistics")]
     pub async fn get_collection_info(&self) -> Result<CallToolResult, McpError> {
-        let client = self.client.lock().await;
 
-        let collection_info = client
+        let collection_info = self.client
             .collection_info(&self.collection_name)
             .await
             .map_err(|e| {
@@ -298,6 +292,97 @@ impl QdrantMCPServer {
 
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&info).unwrap(),
+        )]))
+    }
+    
+    #[tool(
+        description = "Semantic search with optional keyword filtering - finds semantically similar content, optionally filtered to contain specific keywords"
+    )]
+    pub async fn keyword_search(
+        &self,
+        Parameters(args): Parameters<KeywordSearchArgs>,
+    ) -> Result<CallToolResult, McpError> {
+        let query_vector = self.embed_text(&args.query).await?;
+
+        let keywords: Vec<String> = args
+            .must_contain_keywords
+            .split_whitespace()
+            .map(|s| s.to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        let initial_limit = if keywords.is_empty() {
+            args.limit
+        } else {
+            args.limit * 5
+        };
+
+        let search_result = self.client
+            .search_points(SearchPoints {
+                collection_name: self.collection_name.clone(),
+                vector: query_vector,
+                limit: initial_limit,
+                with_payload: Some(args.with_payload.into()),
+                ..Default::default()
+            })
+            .await
+            .map_err(|e| McpError::internal_error(format!("Search failed: {}", e), None))?;
+
+        if keywords.is_empty() {
+            let results = json!({
+                "query": args.query,
+                "keywords": [],
+                "keyword_filtering": false,
+                "count": search_result.result.len(),
+                "results": search_result.result.iter().map(|p| json!({
+                    "id": p.id.as_ref().map(|id| format!("{:?}", id)),
+                    "score": p.score,
+                    "payload": p.payload,
+                })).collect::<Vec<_>>()
+            });
+
+            return Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string_pretty(&results).unwrap(),
+            )]));
+        }
+
+        let filtered_results: Vec<_> = search_result
+    .result
+    .iter()
+    .filter(|point| {
+        let text_fields = ["text", "content", "body", "description"];
+        
+        for field_name in &text_fields {
+            if let Some(value) = point.payload.get(*field_name) {
+                if let Some(text) = value.as_str() {
+                    let text_lower = text.to_lowercase();
+                    let contains_all = keywords.iter().all(|kw| text_lower.contains(kw));
+                    if contains_all {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    })
+    .take(args.limit as usize)
+    .collect();
+
+        let results = json!({
+            "query": args.query,
+            "keywords": keywords,
+            "keyword_filtering": true,
+            "total_semantic_matches": search_result.result.len(),
+            "keyword_filtered_count": filtered_results.len(),
+            "results": filtered_results.iter().map(|p| json!({
+                "id": p.id.as_ref().map(|id| format!("{:?}", id)),
+                "score": p.score,
+                "payload": p.payload,
+            })).collect::<Vec<_>>()
+        });
+
+        Ok(CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&results).unwrap(),
         )]))
     }
 
