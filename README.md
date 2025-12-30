@@ -511,8 +511,7 @@ MIT
 
 ---
 
-![Architecture](architecture.svg)
-
+![qdrant_mcp_architecture](https://github.com/user-attachments/assets/39df7f4a-eed7-435d-9b90-ece378d20c37)
 <svg viewBox="0 0 800 900" xmlns="http://www.w3.org/2000/svg">
   <!-- Define styles -->
   <defs>
