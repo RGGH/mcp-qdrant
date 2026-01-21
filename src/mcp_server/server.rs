@@ -166,7 +166,7 @@ impl QdrantMCPServer {
                     tracing::info!(collection = %collection_name, "collection_exists");
                 } else {
                     println!(
-                        "⚠️  Collection '{}' does not exist - creating with synthetic data...",
+                        "📦 Collection '{}' not found - creating with sample data...",
                         collection_name
                     );
                     tracing::warn!(collection = %collection_name, "collection_not_found_creating");

@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
 
     println!("⚠️  Prerequisites:");
     println!("   • Qdrant must be running at {}", config.qdrant_url);
-    println!("   • Collection '{}' should exist! (else you need to create it)", config.collection_name);
+    println!("   • Collection '{}' will be auto-created with sample data if missing", config.collection_name);
     println!();
 
     let bind_address = format!("{}:{}", config.host, config.port);
