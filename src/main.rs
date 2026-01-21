@@ -1,0 +1,83 @@
+use rmcp::transport::streamable_http_server::{
+    StreamableHttpService, session::local::LocalSessionManager,
+};
+use std::net::SocketAddr;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+mod config;
+mod mcp_server;
+
+use config::{ServerConfig, ensure_env_file};
+use mcp_server::QdrantMCPServer;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,mcp_qdrant=debug".to_string().into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    ensure_env_file()?;
+    let config = ServerConfig::from_env()?;
+
+    println!("🔧 Configuration:");
+    println!("  📡 Binding to: {}:{}", config.host, config.port);
+    println!("  🔗 MCP endpoint: http://127.0.0.1:{}/mcp", config.port);
+    println!("  🗄️  Qdrant collection: {}", config.collection_name);
+    println!("  🌐 Qdrant URL: {}", config.qdrant_url);
+    println!("  🤖 Embedding model: {}", config.embedding_model);
+    println!();
+
+
+    let bind_address = format!("{}:{}", config.host, config.port);
+    let server_config = config.clone();
+
+    let mcp_server = QdrantMCPServer::new(
+        server_config.qdrant_url.clone(),
+        server_config.collection_name.clone(),
+        server_config.embedding_model.clone(),
+    )
+    .await?;
+
+    let service = StreamableHttpService::new(
+        move || Ok(mcp_server.clone()), 
+        LocalSessionManager::default().into(),
+        Default::default(),
+    );
+
+    let router = axum::Router::new().nest_service("/mcp", service);
+
+    let addr: SocketAddr = bind_address.parse()?;
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+
+    println!("✅ Server is running!");
+    println!();
+    println!("📋 Available tools:");
+    println!("  • search_text - Natural language semantic search");
+    println!("  • search_vectors - Semantic similarity search with pre-computed vectors");
+    println!("  • scroll_points - Paginate through points");
+    println!("  • count_points - Count total points");
+    println!("  • filter_search - Search with metadata filters");
+    println!("  • get_collection_info - Collection statistics");
+    println!();
+    println!("📚 Available resources:");
+    println!("  • qdrant://collection - Collection information");
+    println!();
+    println!("Press Ctrl+C to stop the server...");
+    println!();
+
+    axum::serve(listener, router)
+        .with_graceful_shutdown(async {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("failed to listen for ctrl-c");
+            println!("\n🛑 Shutting down server...");
+        })
+        .await?;
+
+    println!("✅ Server stopped");
+    Ok(())
+}

@@ -1,0 +1,28 @@
+[package]
+name = "mcp-qdrant"
+version = "0.1.1"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+axum = "0.8.8"
+dotenvy = "0.15.7"
+fastembed = "5.5.0"
+qdrant-client = "1.16.0"
+rmcp = { version = "0.12.0", features = ["server", "transport-streamable-http-server"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.146"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread", "signal"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+
+[profile.release]
+opt-level = "z"          # Optimize for size instead of speed
+lto = true               # Link-time optimization - removes unused code across crates
+codegen-units = 1        # Better optimization (slower compile, smaller binary)
+strip = true             # Strip symbols from binary
+panic = "abort"          # Don't unwind on panic (smaller, but no cleanup)
+
+# Optional but effective
+[profile.release.package."*"]
+opt-level = "z"          # Apply size optimization to all dependencies too
