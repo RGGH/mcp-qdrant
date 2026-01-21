@@ -23,18 +23,25 @@ async fn main() -> anyhow::Result<()> {
     ensure_env_file()?;
     let config = ServerConfig::from_env()?;
 
+    println!("🚀 Starting MCP Qdrant Server");
+    println!();
     println!("🔧 Configuration:");
     println!("  📡 Binding to: {}:{}", config.host, config.port);
-    println!("  🔗 MCP endpoint: http://127.0.0.1:{}/mcp", config.port);
+    println!("  🔗 MCP endpoint: http://{}:{}/mcp", config.host, config.port);
     println!("  🗄️  Qdrant collection: {}", config.collection_name);
     println!("  🌐 Qdrant URL: {}", config.qdrant_url);
     println!("  🤖 Embedding model: {}", config.embedding_model);
     println!();
 
+    println!("⚠️  Prerequisites:");
+    println!("   • Qdrant must be running at {}", config.qdrant_url);
+    println!("   • Collection '{}' should exist! (else you need to create it)", config.collection_name);
+    println!();
 
     let bind_address = format!("{}:{}", config.host, config.port);
     let server_config = config.clone();
 
+    // Initialize MCP server (includes Qdrant connection checks)
     let mcp_server = QdrantMCPServer::new(
         server_config.qdrant_url.clone(),
         server_config.collection_name.clone(),
@@ -43,13 +50,12 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     let service = StreamableHttpService::new(
-        move || Ok(mcp_server.clone()), 
+        move || Ok(mcp_server.clone()),
         LocalSessionManager::default().into(),
         Default::default(),
     );
 
     let router = axum::Router::new().nest_service("/mcp", service);
-
     let addr: SocketAddr = bind_address.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
@@ -57,14 +63,20 @@ async fn main() -> anyhow::Result<()> {
     println!();
     println!("📋 Available tools:");
     println!("  • search_text - Natural language semantic search");
-    println!("  • search_vectors - Semantic similarity search with pre-computed vectors");
+    println!("  • filter_search - Search with metadata filters");
+    println!("  • keyword_search - Semantic search with keyword filtering");
+    println!("  • search_vectors - Search with pre-computed vectors");
     println!("  • scroll_points - Paginate through points");
     println!("  • count_points - Count total points");
-    println!("  • filter_search - Search with metadata filters");
     println!("  • get_collection_info - Collection statistics");
     println!();
     println!("📚 Available resources:");
     println!("  • qdrant://collection - Collection information");
+    println!();
+    println!("🔗 Connect from:");
+    println!("  • Claude Desktop: Add to config file");
+    println!("  • Claude.ai: Use Custom Connector with http://{}:{}/mcp", config.host, config.port);
+    println!("  • MCP Inspector: http://{}:{}/mcp", config.host, config.port);
     println!();
     println!("Press Ctrl+C to stop the server...");
     println!();

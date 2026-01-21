@@ -5,7 +5,7 @@ const DEFAULT_PORT: u16 = 8766;
 const DEFAULT_HOST: &str = "127.0.0.1"; 
 const DEFAULT_COLLECTION: &str = "qc1";
 const DEFAULT_QDRANT_URL: &str = "http://localhost:6334";
-const DEFAULT_EMBEDDING_MODEL: &str = "BAAI/bge-small-en-v1.5";
+const DEFAULT_EMBEDDING_MODEL: &str = "AllMiniLML12V2";
 const ENV_FILE: &str = ".env";
 
 #[derive(Debug, Clone)]

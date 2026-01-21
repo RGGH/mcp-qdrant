@@ -129,6 +129,9 @@ EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 # Logging
 RUST_LOG=info,mcp_qdrant=debug
 ```
+> [!TIP]
+> Please note that when using Docker we set `HOST="0.0.0.0"` to make the server listen on all network interfaces. This is
+> necessary when running the server in a Docker container.
 
 ### 3. Start the Server
 
