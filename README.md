@@ -1,17 +1,15 @@
 [![Rust](https://github.com/e21-ai/mcp-qdrant/actions/workflows/rust.yml/badge.svg)](https://github.com/e21-ai/mcp-qdrant/actions/workflows/rust.yml)
-# MCP Qdrant 
+
+# MCP Qdrant
 
 ## TL;DR
 
-- Run as a server, preferably on same server as the Qdrant collection
-- Use LLM + LLM CLient + mcp-qdrant to find stuff, just with semantic meaning
+- Run as a server
+- Use LLM + LLM Client + mcp-qdrant to find stuff using semantic meaning
 
+## The Flow
 
-
-
-## The flow:
-
-```code
+```
 1. Client makes HTTP request
    ↓
 2. Axum server receives TCP connection on port 8766
@@ -29,46 +27,43 @@
 8. Axum server sends HTTP response over TCP
 ```
 
-
 # Testing
 
 https://modelcontextprotocol.io/docs/tools/inspector
 
 <img width="1919" height="805" alt="image" src="https://github.com/user-attachments/assets/c9b7ac51-d734-47e1-a215-b263592e35c7" />
 
-If you use Goose :
-```bash
-  mcp-qdrant:
-    enabled: true
-    type: streamable_http
-    name: mcp-qdrant
-    description: qdrant-mcp
-    uri: http://localhost:8766/mcp
-    envs: {}
-    env_keys: []
-    headers: {}
-    timeout: 12
-    bundled: null
-    available_tools: []
+If you use Goose:
+```yaml
+mcp-qdrant:
+  enabled: true
+  type: streamable_http
+  name: mcp-qdrant
+  description: qdrant-mcp
+  uri: http://localhost:8766/mcp
+  envs: {}
+  env_keys: []
+  headers: {}
+  timeout: 12
+  bundled: null
+  available_tools: []
 ```
 
 ---
----
----
 
-# Qdrant MCP Server - 
+# Qdrant MCP Server
 
-A powerful Model Context Protocol (MCP) server that enables semantic search capabilities through Qdrant vector database with local FastEmbed text embedding. Connect Claude or any MCP-compatible client to your vector data for intelligent, context-aware search and retrieval.
+Enables semantic search capabilities through Qdrant vector database. Connect Claude or any MCP-compatible client to your vector data for intelligent, context-aware search and retrieval.
 
 ## Features
 
-- 🔍 **Semantic Text Search** - Natural language queries automatically embedded and searched
-- 🎯 **Filtered Search** - Combine semantic search with metadata filtering (username, filename, etc.)
-- 🔑 **Keyword Search** - Find semantically similar content that contains specific keywords
-- 📊 **Vector Operations** - Direct vector search, scrolling, counting, and collection management
-- ⚡ **Local Embeddings** - Fast, private text embedding using FastEmbed (no external API calls)
-- 🌐 **Remote Access** - Serve over HTTP for connection from Claude.ai and other MCP clients
-- 🔧 **Easy Configuration** - Simple `.env` file setup with sensible defaults
+- **Semantic Text Search** - Natural language queries automatically embedded and searched
+- **Filtered Search** - Combine semantic search with metadata filtering (username, filename, etc.)
+- **Keyword Search** - Find semantically similar content that contains specific keywords
+- **Vector Operations** - Direct vector search, scrolling, counting, and collection management
+- **Local Embeddings** - Fast, private text embedding using FastEmbed (no external API calls)
+- **Remote Access** - Serve over HTTP for connection from Claude.ai and other MCP clients
+- **Easy Configuration** - Simple `.env` file setup with sensible defaults
 
 ## Table of Contents
 
@@ -186,13 +181,22 @@ For **remote access** (Claude.ai, network clients):
 HOST=0.0.0.0
 ```
 
-⚠️ **Security Warning**: When exposing to the network, ensure proper firewall rules and consider adding authentication.
+**Security Warning**: When exposing to the network, ensure proper firewall rules and consider adding authentication, or run behind a proxy, e.g., Nginx.
 
 ## Connecting to Claude
 
 ### Option 1: Claude Desktop (Local)
 
-Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Add to your Claude Desktop configuration file:
+
+**macOS:**
+`~/Library/Application Support/Claude/claude_desktop_config.json`
+
+**Windows:**
+`%APPDATA%\Claude\claude_desktop_config.json`
+
+**Linux:**
+`~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -206,6 +210,11 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
     }
   }
 }
+```
+
+**Windows Note**: Use double backslashes (`\\`) or forward slashes (`/`) in paths:
+```json
+"command": "C:\\path\\to\\qdrant-mcp-server.exe"
 ```
 
 ### Option 2: Claude.ai (Remote via Custom Connector)
@@ -407,7 +416,7 @@ RUST_LOG=debug cargo run
 **"Failed to bind to address"**
 - Port 8766 might be in use
 - Change `PORT` in `.env` file
-- Check with: `lsof -i :8766` (macOS/Linux)
+- Check with: `lsof -i :8766` (macOS/Linux) or `netstat -ano | findstr :8766` (Windows)
 
 **"Failed to connect to Qdrant"**
 - Ensure Qdrant is running: `docker ps`
@@ -512,6 +521,3 @@ MIT
 ---
 
 ![qdrant_mcp_architecture](https://github.com/user-attachments/assets/39df7f4a-eed7-435d-9b90-ece378d20c37)
-
-
-
