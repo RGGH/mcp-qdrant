@@ -353,15 +353,14 @@ impl QdrantMCPServer {
         let text_fields = ["text", "content", "body", "description"];
         
         for field_name in &text_fields {
-            if let Some(value) = point.payload.get(*field_name) {
-                if let Some(text) = value.as_str() {
+            if let Some(value) = point.payload.get(*field_name)
+                && let Some(text) = value.as_str() {
                     let text_lower = text.to_lowercase();
                     let contains_all = keywords.iter().all(|kw| text_lower.contains(kw));
                     if contains_all {
                         return true;
                     }
                 }
-            }
         }
         false
     })
