@@ -15,6 +15,7 @@ pub struct ServerConfig {
     pub qdrant_url: String,
     pub collection_name: String,
     pub embedding_model: String,
+    pub auth_token: Option<String>,
 }
 
 impl ServerConfig {
@@ -29,7 +30,6 @@ impl ServerConfig {
         let host = std::env::var("HOST")
             .unwrap_or_else(|_| DEFAULT_HOST.to_string());
 
-
         let qdrant_url =
             std::env::var("QDRANT_URL").unwrap_or_else(|_| DEFAULT_QDRANT_URL.to_string());
 
@@ -39,12 +39,15 @@ impl ServerConfig {
         let embedding_model = std::env::var("EMBEDDING_MODEL")
             .unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string());
 
+        let auth_token = std::env::var("MCP_AUTH_TOKEN").ok();
+
         Ok(Self {
             port,
             host,
             qdrant_url,
             collection_name,
             embedding_model,
+            auth_token,
         })
     }
 }
@@ -61,7 +64,11 @@ pub fn ensure_env_file() -> anyhow::Result<()> {
              QDRANT_URL={}\n\
              QDRANT_COLLECTION={}\n\
              EMBEDDING_MODEL={}\n\
-             RUST_LOG=info,mcp_qdrant=debug\n",
+             RUST_LOG=info,mcp_qdrant=debug\n\
+             \n\
+             # Authentication (optional - if not set, server allows unauthenticated access)\n\
+             # Generate with: openssl rand -base64 32\n\
+             # MCP_AUTH_TOKEN=your-token-here\n",
             DEFAULT_HOST,
             DEFAULT_PORT,
             DEFAULT_QDRANT_URL,

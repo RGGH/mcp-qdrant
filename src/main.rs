@@ -1,3 +1,4 @@
+
 use rmcp::transport::streamable_http_server::{
     StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -6,6 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod mcp_server;
+mod middleware;
 
 use config::{ServerConfig, ensure_env_file};
 use mcp_server::QdrantMCPServer;
@@ -31,6 +33,12 @@ async fn main() -> anyhow::Result<()> {
     println!("  🗄️  Qdrant collection: {}", config.collection_name);
     println!("  🌐 Qdrant URL: {}", config.qdrant_url);
     println!("  🤖 Embedding model: {}", config.embedding_model);
+    
+    if config.auth_token.is_some() {
+        println!("  🔐 Authentication: ENABLED (Bearer token required)");
+    } else {
+        println!("  ⚠️  Authentication: DISABLED (set MCP_AUTH_TOKEN in .env to enable)");
+    }
     println!();
 
     println!("⚠️  Prerequisites:");
@@ -55,12 +63,27 @@ async fn main() -> anyhow::Result<()> {
         Default::default(),
     );
 
-    let router = axum::Router::new().nest_service("/mcp", service);
+    // Create router with authentication middleware
+    let auth_token = config.auth_token.clone();
+    let router = axum::Router::new()
+        .nest_service("/mcp", service)
+        .layer(axum::middleware::from_fn(move |req, next| {
+            crate::middleware::auth_middleware(auth_token.clone(), req, next)
+        }));
+
     let addr: SocketAddr = bind_address.parse()?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     println!("✅ Server is running!");
     println!();
+    
+    if config.auth_token.is_some() {
+        println!("🔐 Authentication is ENABLED");
+        println!("   Clients must include: Authorization: Bearer <token>");
+        println!("   Token is set in MCP_AUTH_TOKEN environment variable");
+        println!();
+    }
+    
     println!("📋 Available tools:");
     println!("  • search_text - Natural language semantic search");
     println!("  • filter_search - Search with metadata filters");
