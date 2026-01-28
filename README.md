@@ -35,18 +35,21 @@ https://modelcontextprotocol.io/docs/tools/inspector
 
 If you use Goose:
 ```yaml
-mcp-qdrant:
-  enabled: true
-  type: streamable_http
-  name: mcp-qdrant
-  description: qdrant-mcp
-  uri: http://localhost:8766/mcp
-  envs: {}
-  env_keys: []
-  headers: {}
-  timeout: 12
-  bundled: null
-  available_tools: []
+  mcp-qdrant:
+    auth:
+      type: bearer
+      token: "${MCP_AUTH_TOKEN}"
+    enabled: true
+    type: streamable_http
+    name: mcp-qdrant
+    description: mcp-qdrant
+    uri: http://localhost:8766/mcp
+    envs: {}
+    env_keys: []
+    headers: {}
+    timeout: 44
+    bundled: null
+    available_tools: []
 ```
 
 ---
