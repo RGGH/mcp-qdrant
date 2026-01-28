@@ -150,8 +150,13 @@ impl QdrantMCPServer {
             embedding_model_name
         );
         tracing::info!(model = ?model, "initializing_fastembed_model");
-        let mut embedding_model =
-            TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))?;
+        // let mut embedding_model =
+        //     TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))?;
+        let mut embedding_model = tokio::task::spawn_blocking(move || {
+            TextEmbedding::try_new(InitOptions::new(model).with_show_download_progress(true))
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("Task join error: {}", e))??;
 
         println!("✅ Embedding model loaded");
         tracing::info!("fastembed_model_initialized");
