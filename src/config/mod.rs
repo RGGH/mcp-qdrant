@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 const DEFAULT_PORT: u16 = 8766;
-const DEFAULT_HOST: &str = "127.0.0.1"; 
+const DEFAULT_HOST: &str = "127.0.0.1";
 const DEFAULT_COLLECTION: &str = "qc1";
 const DEFAULT_QDRANT_URL: &str = "http://localhost:6334";
 const DEFAULT_EMBEDDING_MODEL: &str = "BAAI/bge-m3";
@@ -20,13 +20,18 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn from_env() -> anyhow::Result<Self> {
+        // CRITICAL FIX: Check for Docker environment variables FIRST
+        // before loading .env file, so Docker Compose values take priority
+        let auth_from_docker = std::env::var("MCP_AUTH_TOKEN").ok();
+        
+        // Load .env file (this won't override existing env vars)
         dotenvy::dotenv().ok();
 
         let port = std::env::var("PORT")
             .ok()
             .and_then(|s| s.parse::<u16>().ok())
             .unwrap_or(DEFAULT_PORT);
-        
+
         let host = std::env::var("HOST")
             .unwrap_or_else(|_| DEFAULT_HOST.to_string());
 
@@ -39,7 +44,8 @@ impl ServerConfig {
         let embedding_model = std::env::var("EMBEDDING_MODEL")
             .unwrap_or_else(|_| DEFAULT_EMBEDDING_MODEL.to_string());
 
-        let auth_token = std::env::var("MCP_AUTH_TOKEN").ok();
+        // Use Docker env var if it was set, otherwise check again (from .env)
+        let auth_token = auth_from_docker.or_else(|| std::env::var("MCP_AUTH_TOKEN").ok());
 
         Ok(Self {
             port,
@@ -55,6 +61,7 @@ impl ServerConfig {
 pub fn ensure_env_file() -> anyhow::Result<()> {
     let env_path = Path::new(ENV_FILE);
     
+    // Only create .env if it doesn't exist
     if !env_path.exists() {
         let default_content = format!(
             "# MCP Qdrant Server Configuration\n\
@@ -75,9 +82,12 @@ pub fn ensure_env_file() -> anyhow::Result<()> {
             DEFAULT_COLLECTION,
             DEFAULT_EMBEDDING_MODEL
         );
+        
         fs::write(env_path, default_content)?;
         println!("📝 Created {} with default configuration", ENV_FILE);
+        println!("   ⚠️  Note: Environment variables take precedence over .env file");
     }
     
     Ok(())
 }
+
