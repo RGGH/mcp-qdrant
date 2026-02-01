@@ -42,7 +42,7 @@ mcp-qdrant:
     description: mcp-qdrant
     uri: http://localhost:8766/mcp
     headers:
-      Authorization: "Bearer kFC+GCGRI7uknvKuVNa8lGeOlZgUY8UxdJxIq7HqSOs="
+      Authorization: "Bearer mFC+GCGRI7uknvKuVNa8lGeOlZgUY8UxdJxIq7HqSOs="
     envs: {}
     env_keys: []
     timeout: 120
