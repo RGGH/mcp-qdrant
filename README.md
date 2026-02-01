@@ -167,6 +167,8 @@ Choose from several pre-trained FastEmbed models:
 | `BAAI/bge-large-en-v1.5` | Large | Slower | Best | Maximum accuracy |
 | `sentence-transformers/all-MiniLM-L6-v2` | Small | Fast | Good | Alternative option |
 
+And many more, the list changes as FastEmbed adds more models. Kudos to FastEmbed!
+
 Set your preferred model in `.env`:
 
 ```env
