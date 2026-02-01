@@ -1,4 +1,4 @@
-[![Rust](https://github.com/e21-ai/mcp-qdrant/actions/workflows/rust.yml/badge.svg)](https://github.com/e21-ai/mcp-qdrant/actions/workflows/rust.yml)
+
 
 # MCP Qdrant
 
@@ -31,7 +31,6 @@
 
 https://modelcontextprotocol.io/docs/tools/inspector
 
-<img width="1919" height="805" alt="image" src="https://github.com/user-attachments/assets/c9b7ac51-d734-47e1-a215-b263592e35c7" />
 
 If you use Goose:
 ```yaml
