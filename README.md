@@ -7,6 +7,10 @@
 - Run as a server
 - Use LLM + LLM Client + mcp-qdrant to find stuff using semantic meaning
 
+> [!TIP]
+> If you experience connection errors, make sure you have .env in project root, and do a source .env
+> Also ensure you actually have Qdrant running
+
 ## The Flow
 
 ```
