@@ -6,6 +6,10 @@
 
 - Run as a server
 - Use LLM + LLM Client + mcp-qdrant to find stuff using semantic meaning
+- Make sure the model you use with the MCP is the same model you already used for doing - FastEmbed - embeddings!
+
+<img width="1919" height="743" alt="example" src="https://github.com/user-attachments/assets/539c6451-4ff5-4561-a930-40e0ec9d272f" />
+
 
 > [!TIP]
 > If you experience connection errors, make sure you have .env in project root
